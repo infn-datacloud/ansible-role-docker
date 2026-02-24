@@ -12,19 +12,65 @@
     name:
       - apt-transport-https
       - ca-certificates
+      - git
+      - curl
+      - gnupg
+
+- name: "[Debian-like OS] Install python-debian into the specified (virtualenv)"
+  ansible.builtin.pip:
+    name: python-debian
+    virtualenv: /var/tmp/.ansible
+
+- name: "[Debian-like OS] Add software-properties-common (old distrib, < Debian 13)"
+  ansible.builtin.apt:
+    name:
       - software-properties-common
+  when: ansible_facts.distribution|lower == 'debian' 
+        and ansible_facts.distribution_major_version|int < 13
 
-- name: "[Debian-like OS] Import the Docker repository key"
-  ansible.builtin.apt_key:
-    url: "{{ docker_apt_key_url }}"
-    state: present
+- name: "[Debian-like OS] Create Docker GPG key directory"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
 
-- name: "[Debian-like OS] Add docker apt repo"
+- name: "[Debian-like OS] Get system architecture for Docker repo"
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_architecture
+  changed_when: false
+
+- name: "[Debian-like OS] Download Docker's official GPG key"
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: DEBUG - Check if GPG key exists
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/docker.asc
+  register: gpg_key_stat
+
+- name: DEBUG - Show GPG key status
+  ansible.builtin.debug:
+    msg: "GPG key exists: {{ gpg_key_stat.stat.exists }}, Size: {{ gpg_key_stat.stat.size | default('N/A') }}"
+
+- name: DEBUG - List keyrings directory
+  ansible.builtin.command: ls -lah /etc/apt/keyrings/
+  register: keyrings_list
+
+- name: DEBUG - Show keyrings directory contents
+  ansible.builtin.debug:
+    var: keyrings_list.stdout_lines
+
+- name: "[Debian-like OS] Add Docker repository to Apt sources"
   ansible.builtin.apt_repository:
-    repo: "{{ docker_apt_repo }}"
+    repo: "deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
     state: present
-  notify: "Refresh apt cache"
+    filename: docker
 
+- name: "[Debian-like OS] Update apt cache after adding Docker repository"
+  ansible.builtin.apt:
+    update_cache: yes
 
 - name: "Perform common tasks"
   ansible.builtin.include_tasks: common.yml
