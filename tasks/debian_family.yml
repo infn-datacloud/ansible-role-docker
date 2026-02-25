@@ -1,11 +1,18 @@
 ---
 
-- name: "[Ubuntu] Fail if release is not supported (Ubuntu version >= 16.04)"
+- name: "[Ubuntu] Fail if release is not supported (Ubuntu version >= 20.04)"
   ansible.builtin.fail:
-    msg: "The role is designed only for Ubuntu 16.04 or higher"
+    msg: "The role is designed only for Ubuntu 22.04 or higher"
   when:
     - ansible_distribution == 'Ubuntu'
-    - ansible_distribution_version is version('16.04', '<')
+    - ansible_distribution_version is version('22.04', '<')
+
+- name: "[Debian] Fail if release is not supported (Debian version >= 12)"
+  ansible.builtin.fail:
+    msg: "The role is designed only for Debian 12 or higher"
+  when:
+    - ansible_distribution == 'Debian'
+    - ansible_distribution_version is version('12', '<')
 
 - name: "[Debian-like OS] Install docker requisites"
   ansible.builtin.apt:
@@ -41,7 +48,7 @@
 
 - name: "[Debian-like OS] Download Docker's official GPG key"
   ansible.builtin.get_url:
-    url: https://download.docker.com/linux/debian/gpg
+    url: https://download.docker.com/linux/{{ ansible_facts.distribution|lower }}/gpg
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
 
@@ -64,7 +71,7 @@
 
 - name: "[Debian-like OS] Add Docker repository to Apt sources"
   ansible.builtin.apt_repository:
-    repo: "deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    repo: "deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_facts.distribution|lower }}  {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
 
