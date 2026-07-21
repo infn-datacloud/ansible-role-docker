@@ -14,6 +14,7 @@
 - name: "[Common] Ensure docker-ce is enabled at boot time"
   ansible.builtin.service:
     name: docker
+    state: started
     enabled: true
 
 - name: "Configure docker"
